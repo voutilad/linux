@@ -209,21 +209,35 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.get_vq_affinity = vp_get_vq_affinity,
 };
 
+static int virtio_pci_legacy_match(struct pci_dev *pci_dev)
+{
+	/* Typically we'd only own devices >= 0x1000 and <= 0x103f... */
+	if (pci_dev->device < 0x1000 || pci_dev->device > 0x103f) {
+		/* but we make an exception for OpenBSD (0b5d...get it?) */
+		if (pci_dev->device == 0x0b5d) {
+			printk(KERN_INFO "virtio_pci: found OpenBSD device\n");
+			return 0;
+		}
+		return -ENODEV;
+	}
+	if (pci_dev->revision != VIRTIO_PCI_ABI_VERSION) {
+		printk(KERN_ERR "virtio_pci: expected ABI version %d, got %d\n",
+		       VIRTIO_PCI_ABI_VERSION, pci_dev->revision);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 /* the PCI probing function */
 int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
 {
 	struct pci_dev *pci_dev = vp_dev->pci_dev;
 	int rc;
 
-	/* We only own devices >= 0x1000 and <= 0x103f: leave the rest. */
-	if (pci_dev->device < 0x1000 || pci_dev->device > 0x103f)
-		return -ENODEV;
-
-	if (pci_dev->revision != VIRTIO_PCI_ABI_VERSION) {
-		printk(KERN_ERR "virtio_pci: expected ABI version %d, got %d\n",
-		       VIRTIO_PCI_ABI_VERSION, pci_dev->revision);
-		return -ENODEV;
-	}
+	rc = virtio_pci_legacy_match(pci_dev);
+	if (rc)
+		return rc;
 
 	rc = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(64));
 	if (rc) {
