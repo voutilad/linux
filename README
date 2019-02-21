@@ -1,3 +1,53 @@
+Linux Hacks for OpenBSD!
+========================
+Ultimately the goal is to fine tune a Linux Kernel for use as guest under
+OpenBSD's hypervisor framework vmm(4)/vmd(8).
+
+Some things I've changed:
+
+1. Reverted TSC code to v4.15
+-----------------------------
+It seems at least using Ubuntu 18.04.02 as a guest, things work when forcing the
+use of tsc via the kernel boot parameter: clocksource=tsc
+
+These changes revert the TSC code back to the known-good state in v4.15. It
+seems since v4.15 there was work done to change how calibration is done and I'm
+guessing that's the cause of frequent lockups of vmd(8).
+
+
+2. Hacked virtio_pci to support porting vmmci(4)
+------------------------------------------------
+OpenBSD guests use the virito_pci device vmmci(4) as a simple way to exchange
+some signals between the host and guest, specifically letting vmd(8) tell the
+guest it should sync its clock to a certain time. This is how OpenBSD guests are
+able to support a host that suspends (zzz or ZZZ) and resumes without a clock
+getting thrown way out of sync.
+
+It also supports properly relaying shutdown and reboot messages since there's no
+ACPI support yet (that I know of).
+
+See https://github.com/voutilad/virtio_vmmci for the (work in progress)
+implementation of a Linux vmmci module.
+
+3. Memorialized Kernel config
+-----------------------------
+I'd guess that like 95% of the configurable junk in the Linux kernel (mostly
+LOTS of devices) don't apply to what we need as a vmd(8) guest, so I'm trying to
+record what we can safely cut out. See the `openbsd.config` file which you can
+use as your `.config` for building the kernel.
+
+Building this Thing
+===================
+New to Linux? Never built a Linux kernel? If you're from the OpenBSD world,
+expect it to take an order of magnitude longer...if not two. It can be as simple
+as "make && make install_modules && make install" if you've got your environment
+set up properly...which you can easily google for or read the existing docs in
+`./Documentation/admin-guide`.
+ 
+
+--------------------------------------------------------------------------
+OLD README:
+
 Linux kernel
 ============
 
