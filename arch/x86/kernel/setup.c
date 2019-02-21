@@ -1014,7 +1014,10 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	init_hypervisor_platform();
 
-	tsc_early_init();
+	/* we use an older tsc version...ignore this.
+	 * tsc_early_init();
+	 */
+
 	x86_init.resources.probe_roms();
 
 	/* after parse_early_param, so could debug it */
