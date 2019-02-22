@@ -222,11 +222,7 @@ static int virtio_pci_legacy_match(struct pci_dev *pci_dev)
 		printk(KERN_ERR "virtio_pci_legacy_match: unkown device");
 		return -ENODEV;
 	}
-	if (pci_dev->revision != VIRTIO_PCI_ABI_VERSION) {
-		printk(KERN_ERR "virtio_pci_legacy_match: expected ABI version %d, got %d\n",
-		       VIRTIO_PCI_ABI_VERSION, pci_dev->revision);
-		return -ENODEV;
-	}
+
 	printk(KERN_INFO "virtio_pci_legacy_match: regular virtio match");
 	return 0;
 }
@@ -240,6 +236,12 @@ int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
 	rc = virtio_pci_legacy_match(pci_dev);
 	if (rc)
 		return rc;
+
+	if (pci_dev->revision != VIRTIO_PCI_ABI_VERSION) {
+		printk(KERN_ERR "virtio_pci_legacy: expected ABI version %d, got %d\n",
+		    VIRTIO_PCI_ABI_VERSION, pci_dev->revision);
+		return -ENODEV;
+	}
 
 	rc = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(64));
 	if (rc) {
