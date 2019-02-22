@@ -46,6 +46,48 @@ static int vp_finalize_features(struct virtio_device *vdev)
 	return 0;
 }
 
+/* OpenBSD's vmmci does some funky stuff when reading registers, so
+   the legacy vp_get won't work since it reads a byte at a time iterating
+   over the registers.
+ */
+static void vp_get_obsd(struct virtio_device *vdev, unsigned offset,
+		   void *buf, unsigned len)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	void __iomem *config_addr = vp_dev->ioaddr +
+		VIRTIO_PCI_CONFIG_OFF(vp_dev->msix_enabled);
+	u8 b;
+	__le16 w;
+	__le32 l;
+
+	printk(KERN_INFO "vp_get_modern: using config base address %p\n",
+			config_addr);
+	
+	BUG_ON(NULL == config_addr);
+	switch (len) {
+	case 1:
+		b = ioread8(config_addr + offset);
+		memcpy(buf, &b, sizeof b);
+		break;
+	case 2:
+		w = cpu_to_le16(ioread16(config_addr + offset));
+		memcpy(buf, &w, sizeof w);
+		break;
+	case 4:
+		l = cpu_to_le32(ioread32(config_addr + offset));
+		memcpy(buf, &l, sizeof l);
+		break;
+	case 8:
+		l = cpu_to_le32(ioread32(config_addr + offset));
+		memcpy(buf, &l, sizeof l);
+		l = cpu_to_le32(ioread32(config_addr + offset + sizeof l));
+		memcpy(buf + sizeof l, &l, sizeof l);
+		break;
+	default:
+		BUG();
+	}
+}
+
 /* virtio config->get() implementation */
 static void vp_get(struct virtio_device *vdev, unsigned offset,
 		   void *buf, unsigned len)
@@ -209,9 +251,24 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.get_vq_affinity = vp_get_vq_affinity,
 };
 
+static const struct virtio_config_ops virtio_pci_config_ops_obsd = {
+	.get		= vp_get_obsd,
+	.set		= vp_set,
+	.get_status	= vp_get_status,
+	.set_status	= vp_set_status,
+	.reset		= vp_reset,
+	.find_vqs	= vp_find_vqs,
+	.del_vqs	= vp_del_vqs,
+	.get_features	= vp_get_features,
+	.finalize_features = vp_finalize_features,
+	.bus_name	= vp_bus_name,
+	.set_vq_affinity = vp_set_vq_affinity,
+	.get_vq_affinity = vp_get_vq_affinity,
+};
+
 static int virtio_pci_legacy_match(struct pci_dev *pci_dev)
 {
-	printk(KERN_INFO "virtio_pci_legacy_match: matching 0x%04x", pci_dev->device);
+	printk(KERN_INFO "virtio_pci_legacy_match: matching 0x%04x\n", pci_dev->device);
 	/* Typically we'd only own devices >= 0x1000 and <= 0x103f... */
 	if (pci_dev->device < 0x1000 || pci_dev->device > 0x103f) {
 		/* but we make an exception for OpenBSD */
@@ -219,11 +276,11 @@ static int virtio_pci_legacy_match(struct pci_dev *pci_dev)
 			printk(KERN_INFO "virtio_pci_legacy_match: found OpenBSD device\n");
 			return 0;
 		}
-		printk(KERN_ERR "virtio_pci_legacy_match: unkown device");
+		printk(KERN_ERR "virtio_pci_legacy_match: unkown device\n");
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "virtio_pci_legacy_match: regular virtio match");
+	printk(KERN_INFO "virtio_pci_legacy_match: regular virtio match\n");
 	return 0;
 }
 
@@ -276,7 +333,15 @@ int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
 	vp_dev->vdev.id.vendor = pci_dev->subsystem_vendor;
 	vp_dev->vdev.id.device = pci_dev->subsystem_device;
 
-	vp_dev->vdev.config = &virtio_pci_config_ops;
+
+	/* Hack for OpenBSD... */
+	if (pci_dev->device == 0x0777) {
+		printk(KERN_INFO "switching possible OpenBSD virtio pci device to use hacked vp_get\n");
+		vp_dev->vdev.config = &virtio_pci_config_ops_obsd;
+	} else {
+		printk(KERN_INFO "using regular legacy vp_get for device 0x%04x\n", pci_dev->device);
+		vp_dev->vdev.config = &virtio_pci_config_ops;
+	}
 
 	vp_dev->config_vector = vp_config_vector;
 	vp_dev->setup_vq = setup_vq;
