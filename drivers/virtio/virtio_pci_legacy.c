@@ -60,9 +60,11 @@ static void vp_get_obsd(struct virtio_device *vdev, unsigned offset,
 	__le16 w;
 	__le32 l;
 
+	/*
 	printk(KERN_INFO "vp_get_modern: using config base address %p\n",
 			config_addr);
-	
+	*/
+
 	BUG_ON(NULL == config_addr);
 	switch (len) {
 	case 1:
