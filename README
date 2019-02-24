@@ -3,7 +3,9 @@ Linux Hacks for OpenBSD!
 Ultimately the goal is to fine tune a Linux Kernel for use as guest under
 OpenBSD's hypervisor framework vmm(4)/vmd(8).
 
-Some things I've changed:
+*Currently tracking 4.20.12 as of 23 Feb 2019.*
+
+Some things I've changed from the mainline kernel:
 
 1. Reverted TSC code to v4.15
 -----------------------------
@@ -27,7 +29,7 @@ It also supports properly relaying shutdown and reboot messages since there's no
 ACPI support yet (that I know of).
 
 See https://github.com/voutilad/virtio_vmmci for the (work in progress)
-implementation of a Linux vmmci module.
+implementation of a Linux vmmci module that depends on this fork.
 
 3. Memorialized Kernel config
 -----------------------------
@@ -36,6 +38,9 @@ LOTS of devices) don't apply to what we need as a vmd(8) guest, so I'm trying to
 record what we can safely cut out. See the `openbsd.config` file which you can
 use as your `.config` for building the kernel.
 
+As of recent commits on 23 Feb 2019, running `make` after a `make clean` takes
+just about 35-40 minutes.
+
 Building this Thing
 ===================
 New to Linux? Never built a Linux kernel? If you're from the OpenBSD world,
@@ -43,7 +48,16 @@ expect it to take an order of magnitude longer...if not two. It can be as simple
 as "make && make install_modules && make install" if you've got your environment
 set up properly...which you can easily google for or read the existing docs in
 `./Documentation/admin-guide`.
- 
+
+High level steps:
+
+1) Get your environment ready by installing gcc, flex, bison, etc.
+2) Clone this repo
+3) Copy `openbsd.config` to `.config`
+4) Run: `make && sudo make modules_install && sudo make install``
+5) Chances are, if you're on some distro like Ubuntu or whatever, GRUB will
+   be updated automatically and you can just reboot now.
+
 
 --------------------------------------------------------------------------
 OLD README:
