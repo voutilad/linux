@@ -3,7 +3,7 @@ Linux Hacks for OpenBSD!
 Ultimately the goal is to fine tune a Linux Kernel for use as guest under
 OpenBSD's hypervisor framework vmm(4)/vmd(8).
 
-*Currently tracking 4.20.12 as of 23 Feb 2019.*
+*Currently tracking 4.20.13 as of 4 Mar 2019.*
 
 Some things I've changed from the mainline kernel:
 
