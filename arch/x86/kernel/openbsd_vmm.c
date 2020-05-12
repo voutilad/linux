@@ -21,12 +21,19 @@ static void __init vmm_init_platform(void)
 {
 	// todo
 	pr_info("[%s] XXX OPENBSD VMM detected?", __func__);
+	kvmclock_init();
+}
+
+static void __init vmm_guest_init(void)
+{
+	pr_info("[%s] initializing guest", __func__);
 }
 
 const __initconst struct hypervisor_x86 x86_hyper_openbsd_vmm = {
 	.name			= "OpenBSD VMM",
 	.detect			= vmm_detect,
 	.type			= X86_HYPER_OPENBSD_VMM,
+	.init.guest_late_init	= vmm_guest_init,
 	.init.init_platform	= vmm_init_platform,
 };
 #endif

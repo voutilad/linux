@@ -119,6 +119,8 @@ obj-$(CONFIG_X86_PMEM_LEGACY_DEVICE) += pmem.o
 
 obj-$(CONFIG_JAILHOUSE_GUEST)	+= jailhouse.o
 
+obj-$(CONFIG_OPENBSD_VMM_GUEST)	+= openbsd_vmm.o
+
 obj-$(CONFIG_EISA)		+= eisa.o
 obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
 

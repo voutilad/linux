@@ -308,19 +308,26 @@ static int kvmclock_setup_percpu(unsigned int cpu)
 void __init kvmclock_init(void)
 {
 	u8 flags;
-
+//XXX: shortcircuit check
+/*
 	if (!kvm_para_available() || !kvmclock)
+	{
+		pr_info("[%s] missing condition: !kvm_para_available (%d) OR !kvmclock (%d)...",
+		    __func__, !kvm_para_available(), !kvmclock);
 		return;
-
+	}
+*/
 	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE2)) {
 		msr_kvm_system_time = MSR_KVM_SYSTEM_TIME_NEW;
 		msr_kvm_wall_clock = MSR_KVM_WALL_CLOCK_NEW;
 	} else if (!kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE)) {
+		pr_info("[%s] kvm para doesn't have feature CLOCKSOURCE...", __func__);
 		return;
 	}
 
 	if (cpuhp_setup_state(CPUHP_BP_PREPARE_DYN, "kvmclock:setup_percpu",
 			      kvmclock_setup_percpu, NULL) < 0) {
+		pr_info("[%s] setup state failed for kvmclock...", __func__);
 		return;
 	}
 
