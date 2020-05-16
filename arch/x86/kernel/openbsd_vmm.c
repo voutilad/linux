@@ -22,6 +22,7 @@
 #include <asm/msr.h>
 #include <asm/hypervisor.h>
 #include <asm/x86_init.h>
+#include <asm/reboot.h>
 
 #if IS_ENABLED(CONFIG_OPENBSD_VMM_GUEST)
 
@@ -173,8 +174,6 @@ static int vmm_set_wallclock(const struct timespec64 *now)
 	return -ENODEV;
 }
 
-
-
 static u64 vmm_clock_read(void)
 {
 	u64 ret;
@@ -217,6 +216,7 @@ static unsigned long vmm_get_tsc_khz(void)
 	return pvclock_tsc_khz(this_cpu_pvti());
 }
 
+//
 static void __init vmm_get_preset_lpj(void)
 {
 	unsigned long khz;
@@ -320,6 +320,15 @@ static void vmm_register_clock(char *txt)
 	pr_info("vmm-clock: cpu %d, msr %llx, %s", smp_processor_id(), pa, txt);
 }
 
+static void vmm_save_sched_clock_state(void)
+{
+}
+
+static void vmm_restore_sched_clock_state(void)
+{
+	vmm_register_clock("primary cpu clock, resume");
+}
+
 static noinline uint32_t __vmm_cpuid_base(void)
 {
 	if (boot_cpu_data.cpuid_level < 0)
@@ -351,6 +360,13 @@ bool vmm_para_available(void)
 	return vmm_cpuid_base() != 0;
 }
 
+static void vmm_shutdown(void)
+{
+	pr_info("[%s] called", __func__);
+	native_write_msr(msr_vmm_system_time, 0, 0);
+	native_machine_shutdown();
+}
+
 /*
  * Copy/pasta from kvmclock.c
  */
@@ -359,8 +375,7 @@ void __init vmmclock_init(void)
 	u8 flags;
 
 	//// MATCHING LOGIC
-	if (!vmm_para_available() || !vmmclock)
-	{
+	if (!vmm_para_available() || !vmmclock) {
 		pr_info("[%s] missing condition: !vmm_para_available (%d) OR !vmmclock (%d)...",
 		    __func__, !vmm_para_available(), !vmmclock);
 		return;
@@ -383,8 +398,7 @@ void __init vmmclock_init(void)
 	vmm_register_clock("primary cpu clock");
 	pvclock_set_pvti_cpu0_va(hv_clock_boot);
 
-	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT))
-	{
+	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT)) {
 		pr_info("[%s] stable bit detected", __func__);
 		vmm_pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
 	}
@@ -396,17 +410,13 @@ void __init vmmclock_init(void)
 	x86_platform.calibrate_cpu = vmm_get_tsc_khz;
 	x86_platform.get_wallclock = vmm_get_wallclock;
 	x86_platform.set_wallclock = vmm_set_wallclock;
-/*
-#ifdef CONFIG_X86_LOCAL_APIC
-	x86_cpuinit.early_percpu_clock_init = kvm_setup_secondary_clock;
-#endif
-	x86_platform.save_sched_clock_state = kvm_save_sched_clock_state;
-	x86_platform.restore_sched_clock_state = kvm_restore_sched_clock_state;
-	machine_ops.shutdown  = kvm_shutdown;
-#ifdef CONFIG_KEXEC_CORE
-	machine_ops.crash_shutdown  = kvm_crash_shutdown;
-#endif
-*/
+
+	// set up some fake state handling for clock_state
+	x86_platform.save_sched_clock_state = vmm_save_sched_clock_state;
+	x86_platform.restore_sched_clock_state = vmm_restore_sched_clock_state;
+
+	machine_ops.shutdown = vmm_shutdown;
+
 	vmm_get_preset_lpj();
 
 	clocksource_register_hz(&vmm_clock, NSEC_PER_SEC);
