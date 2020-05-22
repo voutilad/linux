@@ -213,7 +213,21 @@ static inline void vmm_sched_clock_init(bool stable)
 static unsigned long vmm_get_tsc_khz(void)
 {
 	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
-	return pvclock_tsc_khz(this_cpu_pvti());
+	//return pvclock_tsc_khz(this_cpu_pvti());
+	//return 2904000000UL;
+	return 0;
+}
+
+static unsigned long vmm_calibrate_cpu(void)
+{
+	pr_info("[%s]", __func__);
+	return vmm_get_tsc_khz();
+}
+
+static unsigned long vmm_calibrate_tsc(void)
+{
+	pr_info("[%s]", __func__);
+	return vmm_get_tsc_khz();
 }
 
 //
@@ -317,7 +331,7 @@ static void vmm_register_clock(char *txt)
 
 	pa = slow_virt_to_phys(&src->pvti) | 0x01ULL;
 	wrmsrl(msr_vmm_system_time, pa);
-	pr_info("vmm-clock: cpu %d, msr %llx, %s", smp_processor_id(), pa, txt);
+	pr_info("[%s] vmm-clock: cpu %d, msr %llx, %s", __func__, smp_processor_id(), pa, txt);
 }
 
 static void vmm_save_sched_clock_state(void)
@@ -391,8 +405,8 @@ void __init vmmclock_init(void)
 	msr_vmm_system_time = MSR_KVM_SYSTEM_TIME_NEW;
 	msr_vmm_wall_clock = MSR_KVM_WALL_CLOCK_NEW;
 
-	pr_info("vmm-clock: Using msrs 0x%x and 0x%x",
-		msr_vmm_system_time, msr_vmm_wall_clock);
+	pr_info("[%s]: Using msrs 0x%x and 0x%x",
+	    __func__, msr_vmm_system_time, msr_vmm_wall_clock);
 
 	this_cpu_write(hv_clock_per_cpu, &hv_clock_boot[0]);
 	vmm_register_clock("primary cpu clock");
@@ -406,8 +420,8 @@ void __init vmmclock_init(void)
 	flags = pvclock_read_flags(&hv_clock_boot[0].pvti);
 	vmm_sched_clock_init(flags & PVCLOCK_TSC_STABLE_BIT);
 
-	x86_platform.calibrate_tsc = vmm_get_tsc_khz;
-	x86_platform.calibrate_cpu = vmm_get_tsc_khz;
+	x86_platform.calibrate_tsc = vmm_calibrate_tsc;
+	x86_platform.calibrate_cpu = vmm_calibrate_cpu;
 	x86_platform.get_wallclock = vmm_get_wallclock;
 	x86_platform.set_wallclock = vmm_set_wallclock;
 
